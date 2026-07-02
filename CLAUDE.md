@@ -246,6 +246,43 @@ youran-bookkeeping/
 - `perf:` — 性能优化
 - `chore:` — 构建/工具链相关
 
+### Git 管理规范
+
+#### 仓库状态
+- 仓库已初始化，首次提交：`c3bec2f feat: 初始化悠然记账项目`
+- 仓库路径：项目根目录（本地 Git，无远程仓库）
+
+#### .gitignore 策略
+根目录 `.gitignore` 覆盖以下内容：
+
+| 路径 | 说明 |
+|------|------|
+| `backend/target/` | Maven 编译输出（.class 文件） |
+| `backend/cp.txt` | Maven 自动生成的 classpath |
+| `backend/server.log` | 运行时日志 |
+| `frontend/node_modules/` | npm 依赖 |
+| `frontend/dist/` | 前端构建产物 |
+| `.claude/` | Claude Code 会话历史 |
+| `*.log` | 日志文件 |
+| `.idea/`、`.vscode/` | IDE 配置 |
+
+**不忽略的文件**：`frontend/package-lock.json`、`frontend/.gitignore`、`init.sql`
+
+#### 分支策略
+- `main` — 主分支，保持稳定可发布
+- `dev` — 开发分支（按需创建），功能开发在此进行
+
+#### 推荐工作流
+1. 从 `main` 创建 `dev` 分支：`git checkout -b dev`
+2. 在 `dev` 上进行开发，小步提交、频繁提交
+3. 开发完成后合并回 `main`：`git checkout main && git merge dev`
+4. 打标签发布：`git tag v1.0.0`
+
+#### 注意事项
+- **不要提交构建产物**：提交前运行 `git status` 确认没有 target/、dist/、node_modules/ 等目录
+- **不要混用包管理器**：前端统一使用 npm（不要用 pnpm），`package-lock.json` 需提交到仓库
+- **提交信息中文/英文均可**：建议保持统一风格
+
 ### 命名规范
 - **前端**：camelCase（变量/函数），PascalCase（组件），kebab-case（文件）
 - **后端**：camelCase（Java），小写+连字符（配置文件）
