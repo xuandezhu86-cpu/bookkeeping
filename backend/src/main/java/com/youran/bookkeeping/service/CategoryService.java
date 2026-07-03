@@ -10,6 +10,6 @@ public interface CategoryService {
     List<Category> getParentCategories(Long userId);
     List<Category> getChildrenByParentId(Long parentId, Long userId);
     Category create(Category category, Long userId);
-    Category update(Category category);
-    void delete(Long id);
+    Category update(Category category, Long userId);
+    void delete(Long id, Long userId);
 }

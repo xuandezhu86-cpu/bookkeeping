@@ -50,15 +50,18 @@ public class CategoryController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新分类")
-    public Result<Category> update(@PathVariable Long id, @RequestBody Category category) {
+    public Result<Category> update(@PathVariable Long id, @RequestBody Category category,
+                                    Authentication auth) {
+        Long userId = (Long) auth.getPrincipal();
         category.setId(id);
-        return Result.success(categoryService.update(category));
+        return Result.success(categoryService.update(category, userId));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除分类")
-    public Result<Void> delete(@PathVariable Long id) {
-        categoryService.delete(id);
+    public Result<Void> delete(@PathVariable Long id, Authentication auth) {
+        Long userId = (Long) auth.getPrincipal();
+        categoryService.delete(id, userId);
         return Result.success();
     }
 }
