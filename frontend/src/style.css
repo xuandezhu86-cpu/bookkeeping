@@ -1,3 +1,6 @@
+@import './styles/variables.css';
+
+/* ─── 全局重置 ──────────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
@@ -7,12 +10,133 @@
 html, body {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   height: 100%;
 }
 
+/* ─── 暗色模式基础背景 ──────────────────────────────── */
 html.dark {
-  background: #1a1a2e;
+  background: var(--color-bg);
+}
+
+/* ─── 自定义滚动条 ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* ─── 路由过渡动画 ──────────────────────────────────── */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all var(--transition-normal);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* ─── 卡片入场动画 ──────────────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33%      { transform: translateY(-20px) rotate(1deg); }
+  66%      { transform: translateY(10px) rotate(-1deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33%      { transform: translateY(20px) rotate(-1deg); }
+  66%      { transform: translateY(-10px) rotate(1deg); }
+}
+
+/* ─── 交错入场工具类 ────────────────────────────────── */
+.animate-in > * {
+  opacity: 0;
+  animation: fade-in-up 0.5s ease forwards;
+}
+
+.animate-in > *:nth-child(1) { animation-delay: 0.05s; }
+.animate-in > *:nth-child(2) { animation-delay: 0.10s; }
+.animate-in > *:nth-child(3) { animation-delay: 0.15s; }
+.animate-in > *:nth-child(4) { animation-delay: 0.20s; }
+.animate-in > *:nth-child(5) { animation-delay: 0.25s; }
+.animate-in > *:nth-child(6) { animation-delay: 0.30s; }
+.animate-in > *:nth-child(7) { animation-delay: 0.35s; }
+.animate-in > *:nth-child(8) { animation-delay: 0.40s; }
+
+/* ─── 全局 Element Plus 暗色模式覆盖 ────────────────── */
+html.dark .el-card {
+  background: var(--color-bg-white);
+  border-color: var(--color-border);
+}
+
+html.dark .el-table {
+  background: var(--color-bg-white);
+}
+
+html.dark .el-table th.el-table__cell {
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+}
+
+html.dark .el-table__body tr:hover > td {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+html.dark .el-dialog {
+  background: var(--color-bg-white);
+}
+
+html.dark .el-pagination button,
+html.dark .el-pager li {
+  background: transparent !important;
+  color: var(--color-text-regular);
+}
+
+html.dark .el-switch__label {
+  color: var(--color-text-secondary);
 }

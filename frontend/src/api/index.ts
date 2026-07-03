@@ -19,19 +19,25 @@ api.interceptors.response.use(
   (response) => {
     const res = response.data
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      if (res.code === 401) {
+      if (res.code === 401 || res.code === 403) {
         localStorage.removeItem('token')
         router.push('/login')
+        return Promise.reject(new Error('登录已过期'))
       }
+      ElMessage.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message))
     }
     return res
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    if (status === 401 || status === 403) {
       localStorage.removeItem('token')
       router.push('/login')
+      if (status === 403) {
+        ElMessage.warning('登录已过期，请重新登录')
+        return Promise.reject(error)
+      }
     }
     ElMessage.error(error.message || '网络错误')
     return Promise.reject(error)
