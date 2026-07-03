@@ -71,3 +71,6 @@ export interface ExpenseRecordForm {
   recordDate: string
   note?: string
 }
+
+// AI Assistant types
+export * from './ai'

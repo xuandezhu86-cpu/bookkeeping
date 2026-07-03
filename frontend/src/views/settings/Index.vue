@@ -107,7 +107,76 @@
           <el-empty v-if="!budgetList.length" description="暂无预算" :image-size="60" />
         </el-tab-pane>
 
-        <!-- ─── 标签页3：关于 ────────────────────────── -->
+        <!-- ─── 标签页3：AI 助手 ─────────────────────── -->
+        <el-tab-pane label="AI 助手" name="ai">
+          <div class="ai-settings">
+            <!-- 连接状态 -->
+            <el-card shadow="none" class="setting-card" style="margin-bottom: var(--spacing-md)">
+              <div class="setting-item">
+                <div class="setting-info">
+                  <div class="setting-icon">
+                    <el-icon :size="22" :color="connectionColor"><Connection /></el-icon>
+                  </div>
+                  <div class="setting-text">
+                    <h4>连接状态</h4>
+                    <p>{{ connectionStatusText }}</p>
+                  </div>
+                </div>
+                <div class="setting-control">
+                  <el-tag :type="connectionTagType">{{ connectionLabel }}</el-tag>
+                </div>
+              </div>
+            </el-card>
+
+            <!-- 配置表单 -->
+            <el-card shadow="none" class="setting-card">
+              <el-form label-position="top" class="ai-form">
+                <el-form-item label="API 接口地址">
+                  <el-input
+                    v-model="aiStore.config.endpoint"
+                    placeholder="https://api.openai.com/v1/chat/completions"
+                    @change="handleConfigChange"
+                  />
+                </el-form-item>
+                <el-form-item label="API Key">
+                  <el-input
+                    v-model="aiStore.config.apiKey"
+                    type="password"
+                    show-password
+                    placeholder="sk-..."
+                    @change="handleConfigChange"
+                  />
+                </el-form-item>
+                <el-form-item label="模型名称">
+                  <el-input
+                    v-model="aiStore.config.model"
+                    placeholder="gpt-4o-mini"
+                    @change="handleConfigChange"
+                  />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" :loading="testing" @click="handleTest">
+                    <el-icon><Connection /></el-icon>
+                    测试连接
+                  </el-button>
+                  <el-button @click="handleClearChat">清空对话记录</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <!-- 提示 -->
+            <el-alert
+              title="关于 AI 助手"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-top: var(--spacing-md)"
+              description="AI 助手需要您自行提供 OpenAI 兼容的 API Key。您的 Key 仅存储在本地浏览器中，不会上传到任何服务器。支持任何兼容 OpenAI API 格式的服务，如 OpenAI、DeepSeek、通义千问等。"
+            />
+          </div>
+        </el-tab-pane>
+
+        <!-- ─── 标签页4：关于 ────────────────────────── -->
         <el-tab-pane label="关于" name="about">
           <div class="about-section">
             <div class="about-logo">
@@ -175,7 +244,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { toggleDark } from '../../utils/theme'
 import { budgetApi } from '../../api/budgets'
 import { categoryApi } from '../../api/categories'
-import { Setting, Plus, Delete, Coin, Sunny, Moon } from '@element-plus/icons-vue'
+import { useAiStore } from '../../stores/ai'
+import { testConnection } from '../../api/ai-client'
+import { Setting, Plus, Delete, Coin, Sunny, Moon, Connection } from '@element-plus/icons-vue'
 import type { Budget, Category } from '../../types'
 
 const activeTab = ref('general')
@@ -186,12 +257,6 @@ const budgetList = ref<Budget[]>([])
 const categoryList = ref<Category[]>([])
 const categoryMap = ref<Record<number, string>>({})
 
-// 补齐日期到月末
-const monthEnd = computed(() => {
-  const y = budgetMonth.value.getFullYear()
-  const m = budgetMonth.value.getMonth() + 1
-  return new Date(y, m, 0).getDate()
-})
 
 const totalBudget = computed(() => {
   return budgetList.value.reduce((sum, b) => sum + b.amount, 0).toFixed(2)
@@ -204,7 +269,7 @@ const spentBudget = computed(() => {
 })
 
 const remainingBudget = computed(() => {
-  return (parseFloat(totalBudget.value) - parseFloat(spentBudget.value)).toFixed(2)
+  return parseFloat((parseFloat(totalBudget.value) - parseFloat(spentBudget.value)).toFixed(2))
 })
 
 const budgetForm = ref({
@@ -212,6 +277,59 @@ const budgetForm = ref({
   categoryId: null as number | null,
   amount: 0,
 })
+
+// ── AI 助手 ──────────────────────────────────────────────
+const aiStore = useAiStore()
+const testing = ref(false)
+
+const connectionLabel = computed(() => {
+  if (!aiStore.isConfigured) return '未配置'
+  if (aiStore.connectionStatus === 'untested') return '未测试'
+  if (aiStore.connectionStatus === 'connected') return '已连接'
+  return '连接失败'
+})
+
+const connectionTagType = computed(() => {
+  if (!aiStore.isConfigured || aiStore.connectionStatus === 'untested') return 'info'
+  if (aiStore.connectionStatus === 'connected') return 'success'
+  return 'danger'
+})
+
+const connectionColor = computed(() => {
+  if (aiStore.connectionStatus === 'connected') return '#67c23a'
+  return '#909399'
+})
+
+const connectionStatusText = computed(() => {
+  if (!aiStore.isConfigured) return '请配置 API 地址和 Key'
+  if (aiStore.connectionStatus === 'untested') return '点击"测试连接"验证配置'
+  if (aiStore.connectionStatus === 'connected') return 'API 连接正常'
+  return 'API 连接失败，请检查配置'
+})
+
+function handleConfigChange() {
+  aiStore.saveConfig()
+}
+
+async function handleTest() {
+  testing.value = true
+  try {
+    const ok = await testConnection(aiStore.config)
+    aiStore.connectionStatus = ok ? 'connected' : 'disconnected'
+    if (ok) ElMessage.success('连接成功')
+    else ElMessage.error('连接失败，请检查配置')
+  } catch {
+    aiStore.connectionStatus = 'disconnected'
+    ElMessage.error('连接失败')
+  } finally {
+    testing.value = false
+  }
+}
+
+function handleClearChat() {
+  aiStore.clearConversation()
+  ElMessage.success('对话记录已清空')
+}
 
 onMounted(async () => {
   const savedDark = localStorage.getItem('dark-mode') === 'true'
@@ -435,5 +553,21 @@ async function handleDeleteBudget(id: number) {
 .about-copyright {
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+/* ─── AI 助手设置 ──────────────────────────────────────── */
+.ai-settings {
+  max-width: 540px;
+}
+
+.ai-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.ai-form :deep(.el-form-item__label) {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  padding-bottom: 4px;
 }
 </style>

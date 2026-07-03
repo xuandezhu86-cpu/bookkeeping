@@ -99,20 +99,24 @@
 
       <!-- 内容 -->
       <el-main class="main-content">
-        <router-view v-slot="{ Component }">
-          <transition name="fade-slide" mode="out-in">
-            <component :is="Component" />
+        <router-view v-slot="{ Component, route }">
+          <transition name="fade-slide">
+            <component :is="Component" :key="route.fullPath" />
           </transition>
         </router-view>
       </el-main>
     </el-container>
   </el-container>
+
+  <!-- AI Assistant -->
+  <AiAssistant />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import AiAssistant from '../components/AiAssistant.vue'
 import {
   Odometer, Document, Collection, DataAnalysis, Setting,
   ArrowDown, UserFilled, Bell, Fold, Expand, SwitchButton, Coin
