@@ -65,6 +65,11 @@ export interface RegisterForm {
   nickname: string
 }
 
+export interface ChangePasswordForm {
+  oldPassword: string
+  newPassword: string
+}
+
 export interface ExpenseRecordForm {
   categoryId: number
   amount: number

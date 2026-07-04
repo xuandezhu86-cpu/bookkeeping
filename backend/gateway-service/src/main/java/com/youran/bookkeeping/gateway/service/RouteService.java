@@ -15,6 +15,7 @@ public class RouteService {
     // Route map: URL prefix -> target base URL (sorted by longest prefix first)
     private final List<Map.Entry<String, String>> routes = List.of(
         Map.entry("/api/auth",        "http://localhost:8081"),
+        Map.entry("/api/avatars",     "http://localhost:8081"),
         Map.entry("/api/categories",  "http://localhost:8082"),
         Map.entry("/api/records",     "http://localhost:8083"),
         Map.entry("/api/budgets",     "http://localhost:8084"),

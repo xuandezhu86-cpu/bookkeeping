@@ -13,7 +13,7 @@
 
         <!-- 用户信息 -->
         <div class="sidebar-user" v-show="!isCollapsed">
-          <el-avatar :size="36" :icon="UserFilled" />
+          <el-avatar :size="36" :src="avatarUrl" :icon="UserFilled" />
           <div class="user-info-text">
             <div class="user-name">{{ authStore.user?.nickname || authStore.user?.username }}</div>
             <div class="user-role">个人用户</div>
@@ -43,6 +43,10 @@
           <el-menu-item index="/reports">
             <el-icon><DataAnalysis /></el-icon>
             <span>数据报表</span>
+          </el-menu-item>
+          <el-menu-item index="/profile">
+            <el-icon><UserFilled /></el-icon>
+            <span>个人中心</span>
           </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
@@ -81,13 +85,17 @@
           <!-- 用户 -->
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-avatar :size="32" :icon="UserFilled" />
+              <el-avatar :size="32" :src="avatarUrl" :icon="UserFilled" />
               <span class="user-name-text">{{ authStore.user?.nickname || authStore.user?.username }}</span>
               <el-icon><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">
+                <el-dropdown-item command="profile">
+                  <el-icon><UserFilled /></el-icon>
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
                   <el-icon><SwitchButton /></el-icon>
                   退出登录
                 </el-dropdown-item>
@@ -131,10 +139,19 @@ const breadcrumbMap: Record<string, string> = {
   '/records': '消费记录',
   '/categories': '分类管理',
   '/reports': '数据报表',
+  '/profile': '个人中心',
   '/settings': '设置',
 }
 
 const breadcrumbTitle = computed(() => breadcrumbMap[route.path] || '')
+
+// 头像 URL
+const avatarUrl = computed(() => {
+  if (authStore.user?.avatar) {
+    return `http://localhost:8080${authStore.user.avatar}`
+  }
+  return ''
+})
 
 // 侧边栏折叠
 const isCollapsed = ref(false)
@@ -152,7 +169,9 @@ function toggleCollapse() {
 }
 
 function handleCommand(command: string) {
-  if (command === 'logout') {
+  if (command === 'profile') {
+    router.push('/profile')
+  } else if (command === 'logout') {
     authStore.logout()
     router.push('/login')
   }
