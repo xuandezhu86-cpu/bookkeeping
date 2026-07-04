@@ -49,7 +49,16 @@
 
 ### 架构说明
 
-C/S 架构：Electron 桌面客户端 → Spring Boot 后端 API → MySQL 数据库
+微服务架构：Electron 桌面客户端 → API 网关 (port 8080) → 6 个独立微服务 → MySQL 数据库
+
+| 微服务 | 端口 | 职责 |
+|--------|------|------|
+| Gateway (网关) | 8080 | 请求路由、CORS |
+| Auth | 8081 | 注册、登录、JWT 签发 |
+| Category | 8082 | 分类管理（预设+自定义） |
+| Expense | 8083 | 消费记录 CRUD |
+| Budget | 8084 | 预算设置 |
+| Statistics | 8085 | 数据统计（只读分析） |
 
 ---
 
@@ -208,22 +217,15 @@ youran-bookkeeping/
 │   ├── tsconfig.json
 │   └── package.json
 │
-├── backend/                        # Spring Boot 3
-│   ├── src/main/
-│   │   ├── java/com/youran/bookkeeping/
-│   │   │   ├── config/             # 配置（Security, CORS, MyBatis-Plus）
-│   │   │   ├── controller/         # API 控制器
-│   │   │   ├── service/            # 服务层
-│   │   │   ├── mapper/             # MyBatis-Plus Mapper
-│   │   │   ├── entity/             # 实体类
-│   │   │   ├── dto/                # 数据传输对象
-│   │   │   ├── common/             # 公共类（Result, BusinessException, JwtUtil, etc.）
-│   │   │   └── YouranApplication.java
-│   │   └── resources/
-│   │       ├── application.yml
-│   │       └── mapper/             # XML Mapper
-│   ├── pom.xml
-│   └── init.sql                    # 数据库初始化脚本
+├── backend/                        # Spring Boot 3 — 微服务多模块项目
+│   ├── pom.xml                     # Maven 父工程 (packaging=pom)
+│   ├── common/                     # 公共库 (Result, JwtUtil, etc.)
+│   ├── gateway-service/            # API 网关 (port 8080)
+│   ├── auth-service/               # 认证服务 (port 8081)
+│   ├── category-service/           # 分类服务 (port 8082)
+│   ├── expense-service/            # 消费记录 (port 8083)
+│   ├── budget-service/             # 预算服务 (port 8084)
+│   └── statistics-service/         # 统计服务 (port 8085)
 │
 ├── start-backend.bat               # Windows 后端启动
 ├── start-backend.ps1               # PowerShell 后端启动（被 .bat 调用）
@@ -257,9 +259,9 @@ youran-bookkeeping/
 
 | 路径 | 说明 |
 |------|------|
-| `backend/target/` | Maven 编译输出（.class 文件） |
-| `backend/cp.txt` | Maven 自动生成的 classpath |
-| `backend/server.log` | 运行时日志 |
+| `backend/**/target/` | Maven 编译输出（所有子模块） |
+| `**/server.log` | 运行时日志 |
+| `**/cp.txt` | Maven 自动生成的 classpath |
 | `frontend/node_modules/` | npm 依赖 |
 | `frontend/dist/` | 前端构建产物 |
 | `.claude/` | Claude Code 会话历史 |
@@ -310,31 +312,48 @@ youran-bookkeeping/
 ### Windows 启动（推荐）
 
 ```bash
-# 1. 启动后端（双击 start-backend.bat 或命令行执行）
-cd backend
-mvn compile -q -o
-mvn dependency:build-classpath -Dmdep.outputFile=cp.txt -q -o
-powershell -ExecutionPolicy Bypass -File ../start-backend.ps1 -Port 8080
+# 1. 启动全部后端微服务（双击 start-backend.bat 或命令行执行）
+start-backend.bat all
 
-# 2. 启动前端（双击 start-frontend.bat 或命令行执行）
+# 2. 启动单个服务（如 auth-service）
+start-backend.bat auth-service
+
+# 3. 手动分步启动
+cd backend
+mvn compile -q -o                                         # 编译全部模块
+start-backend.ps1 -Service all                             # 启动全部服务
+
+# 4. 启动前端（双击 start-frontend.bat 或命令行执行）
 cd frontend
 npm run dev
 ```
 
 ### 启动说明
 
-- **start-backend.bat**：设置 JDK 17 和 Maven 路径，编译（离线模式优先），然后调用 `start-backend.ps1` 通过 PowerShell 启动 Java（cmd 的 `set /p` 有 1024 字符限制，无法读取完整 classpath）。
-- **start-backend.ps1**：读取 `cp.txt` 中的完整 classpath（约 9500 字符），自动清理 8080 端口旧进程，然后启动 Spring Boot。
+- **start-backend.bat**：设置 JDK 17 和 Maven 路径，编译全部模块，然后调用 `start-backend.ps1` 启动指定的微服务。支持参数 `all`（默认，启动6个服务）或单个服务名。
+- **start-backend.ps1**：读取各服务的 `cp.txt` classpath，自动清理旧进程，启动 Java 服务。支持 `-Service` 参数。
 - **start-frontend.bat**：检测 `node_modules`，用 `npm run dev` 启动 Vite 开发服务器。
 - 注意：**不要用 pnpm**，之前安装 Electron 时混用了 npm 和 pnpm，pnpm 的 EPERM 错误无法解决。
+- 注意：编译时需要先手动安装 common JAR 到本地 Maven 仓库（一次性的）：
+  ```bash
+  cd backend/common
+  jar cf target/common-1.0.0.jar -C target/classes .
+  mkdir -p ~/.m2/repository/com/youran/common/1.0.0/
+  cp target/common-1.0.0.jar ~/.m2/repository/com/youran/common/1.0.0/
+  ```
 
 ### 端口映射
 
-| 服务 | 端口 |
-|------|------|
-| Spring Boot 后端 | 8080 |
-| Vite 前端开发 | 5173 |
-| MySQL | 3306 |
+| 服务 | 端口 | 模块名 |
+|------|------|--------|
+| Gateway API 网关 | 8080 | gateway-service |
+| Auth 认证服务 | 8081 | auth-service |
+| Category 分类服务 | 8082 | category-service |
+| Expense 消费记录 | 8083 | expense-service |
+| Budget 预算服务 | 8084 | budget-service |
+| Statistics 统计服务 | 8085 | statistics-service |
+| Vite 前端开发 | 5173 | - |
+| MySQL | 3306 | - |
 
 ### 构建打包
 
@@ -348,7 +367,17 @@ npm run build:mac    # macOS 打包
 
 ## 九、API 说明
 
-所有 API 前缀：`http://localhost:8080/api`
+所有 API 统一通过网关访问：`http://localhost:8080/api`。网关根据路径前缀将请求路由到对应微服务。
+
+| 路径前缀 | 目标服务 | 端口 |
+|---------|---------|------|
+| `/api/auth/**` | auth-service | 8081 |
+| `/api/categories/**` | category-service | 8082 |
+| `/api/records/**` | expense-service | 8083 |
+| `/api/budgets/**` | budget-service | 8084 |
+| `/api/statistics/**` | statistics-service | 8085 |
+
+各服务也可通过独立端口直接访问（用于开发和调试）。
 
 ### 无需认证
 
@@ -406,12 +435,35 @@ Electron 和 electron-builder 最初用 `npm` 安装，导致 pnpm 的 `.pnpm` s
 ### 5. Windows 控制台 Quick Edit 模式
 双击 `start-backend.bat` 后，**不要点击 CMD 窗口**。Windows 控制台的"快速编辑模式"会暂停前台进程（Java）。如果误点击导致后端无响应，按 Enter 键恢复。
 
+### 6. 微服务架构注意事项
+- **common 模块需手动安装**：由于 Maven Central 不可达，`mvn install` 无法运行。common 模块的 JAR 需手动安装到本地仓库（见启动说明）。
+- **启动顺序无依赖**：各服务间无 HTTP 调用，可任意顺序启动。
+- **共享数据库**：6 个服务共享同一个 MySQL 数据库 `youran_bookkeeping`，每个服务只操作自己的表。
+- **JWT 密钥一致性**：所有服务必须配置相同的 `jwt.secret`（已在 application.yml 中统一）。
+- **统计服务只读**：statistics-service 从 expense_record 和 category 表读取数据，不执行写操作。
+- **调试方式**：可单独启动单个服务验证，如 `start-backend.bat auth-service`。
+
 ---
 
 ## 十一、验证方式
 
-1. **后端验证**：`curl http://localhost:8080/api/auth/login -X POST -H "Content-Type: application/json" -d '{"username":"test","password":"test"}'`
-2. **前端验证**：`npm run dev` 启动 Vite 开发服务器，浏览器查看页面
-3. **Electron 验证**：`npm run electron:dev` 启动桌面窗口
-4. **全链路验证**：前端记账 → 调后端 API → 读写 MySQL → 报表展示
-5. **跨平台验证**：Windows 和 macOS 上分别打包测试
+### 后端验证
+```bash
+# 1. 编译
+cd backend && mvn compile -q -o
+
+# 2. 启动所有服务
+cd .. && ./start-backend.ps1 -Service all
+
+# 3. 测试认证端点（通过网关）
+curl http://localhost:8080/api/auth/login -X POST -H "Content-Type: application/json" -d '{"username":"test","password":"test"}'
+
+# 4. 测试单个服务直接访问
+curl http://localhost:8082/api/categories/tree -H "Authorization: Bearer <token>"
+```
+
+### 其他验证
+1. **前端验证**：`npm run dev` 启动 Vite 开发服务器，浏览器查看页面
+2. **Electron 验证**：`npm run electron:dev` 启动桌面窗口
+3. **全链路验证**：前端记账 → 调后端 API（经网关路由）→ 读写 MySQL → 报表展示
+4. **跨平台验证**：Windows 和 macOS 上分别打包测试

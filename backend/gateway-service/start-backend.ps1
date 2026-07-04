@@ -2,14 +2,7 @@ param(
     [string]$Service = "all"
 )
 
-$javaHome = "c:\Users\33907\.jdks\ms-17.0.18"
-$javaExe = Join-Path $javaHome "bin\java.exe"
 $backendDir = Join-Path $PSScriptRoot "backend"
-
-if (-not (Test-Path $javaExe)) {
-    Write-Host "[!] JDK 17 not found at $javaExe"
-    exit 1
-}
 
 # Service port mapping
 $services = @{
@@ -31,12 +24,12 @@ $mainClassMap = @{
 }
 
 function Ensure-Classpath {
-    param($ServiceDir, $ServiceName)
+    param($ServiceDir)
     $cpFile = Join-Path $ServiceDir "cp.txt"
     if (-not (Test-Path $cpFile)) {
-        Write-Host "[*] Generating classpath for $ServiceName..."
+        Write-Host "[*] Generating classpath for $(Split-Path $ServiceDir -Leaf)..."
         Push-Location $ServiceDir
-        & "c:\Program Files\JetBrains\IntelliJ IDEA 2025.1\plugins\maven\lib\maven3\bin\mvn.cmd" dependency:build-classpath -Dmdep.outputFile=cp.txt -q -o
+        & mvn dependency:build-classpath -Dmdep.outputFile=cp.txt -q -o
         Pop-Location
     }
 }
@@ -57,42 +50,41 @@ function Kill-Port {
 
 function Start-Service {
     param($Name, $Port, $MainClass)
+    # Kill old process on port
     Kill-Port -Port $Port
 
     $serviceDir = Join-Path $backendDir $Name
-    Ensure-Classpath -ServiceDir $serviceDir -ServiceName $Name
+    Ensure-Classpath -ServiceDir $serviceDir
 
     $cpFile = Join-Path $serviceDir "cp.txt"
     $cp = [System.IO.File]::ReadAllText($cpFile).Trim()
-    # Classpath: service classes + common classes + external jars
-    $classpath = (Join-Path $serviceDir "target/classes") + ";" + (Join-Path $backendDir "common/target/classes") + ";" + $cp
+    $classpath = (Join-Path $serviceDir "target/classes") + ";" + $cp
 
     Write-Host "[*] Starting $Name on port $Port..."
 
     $logFile = Join-Path $serviceDir "server.log"
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $javaExe
+    $psi.FileName = "java"
     $psi.Arguments = "-cp `"$classpath`" $MainClass --server.port=$Port"
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
+    $psi.RedirectStandardOutput = $false
+    $psi.RedirectStandardError = $false
+    $psi.UseShellExecute = $true
     $psi.WorkingDirectory = $serviceDir
 
     try {
         $p = [System.Diagnostics.Process]::Start($psi)
-        # Сopy output to console with prefix
-        $p.Id | Out-Null
         Write-Host "  PID: $($p.Id) - log: $logFile"
     } catch {
         Write-Host "[!] Failed to start $Name`: $_"
     }
 }
 
-# Step 1: Ensure all needed services have cp.txt
+# Step 1: Generate classpath files for all needed services
 $targets = if ($Service -eq "all") { $services.Keys } else { @($Service) }
+
 foreach ($svc in $targets) {
     $serviceDir = Join-Path $backendDir $svc
-    Ensure-Classpath -ServiceDir $serviceDir -ServiceName $svc
+    Ensure-Classpath -ServiceDir $serviceDir
 }
 
 # Step 2: Start services

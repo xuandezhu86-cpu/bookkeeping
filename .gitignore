@@ -1,6 +1,6 @@
 # ─── Maven / Java ───────────────────────────────────────
-backend/target/
-backend/cp.txt
+backend/**/target/
+**/cp.txt
 backend/server.log
 *.class
 *.jar
